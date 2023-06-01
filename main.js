@@ -617,7 +617,6 @@ class CharacterControllerDemo {
   }
 }
 
-
 let _APP = null;
 
 window.addEventListener('DOMContentLoaded', () => {
