@@ -1,0 +1,32 @@
+body {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    background: #000000;
+    margin: 0;
+    padding: 0;    
+        overflow-x:hidden;
+    overflow-y: hidden;
+  }
+
+
+  header, footer{
+    display:flex;
+    justify-content:center;
+    background-color: rgb(26, 48, 57);
+    color:white;
+    padding:10px;    
+  }
+
+  .info-btn{
+    margin-top:10px;
+    background-color: white !important;
+    border-radius: 10px;
+  }
+  .info-btn:hover{
+    color:rgb(26, 48, 57) !important;
+  }
+
+  .top-section{
+    width: 100%;
+  }
