@@ -398,6 +398,7 @@ class WalkState extends State {
     return 'walk';
   }
 
+  
   Enter(prevState) {
     const curAction = this._parent._proxy._animations['walk'].action;
     if (prevState) {
