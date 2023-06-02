@@ -5,6 +5,7 @@ import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.118.1/examples/js
 import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.118/examples/jsm/controls/OrbitControls.js';
 
 
+
 class BasicCharacterControllerProxy {
   constructor(animations) {
     this._animations = animations;
@@ -17,25 +18,26 @@ class BasicCharacterControllerProxy {
 
 
 class BasicCharacterController {
+  //Método constructor de la clase
   constructor(params) {
-    this._Init(params);
+    //Ejecuta el méotodo INIT
+    this.Init(params);
   }
 
-  _Init(params) {
+  Init(params) {
     this._params = params;
     this._decceleration = new THREE.Vector3(-0.0015, -0.0001, -5.0);
     this._acceleration = new THREE.Vector3(1, 0.25, 50.0);
     this._velocity = new THREE.Vector3(0, 0, 0);
-
     this._animations = {};
     this._input = new BasicCharacterControllerInput();
     this._stateMachine = new CharacterFSM(
-        new BasicCharacterControllerProxy(this._animations));
+    new BasicCharacterControllerProxy(this._animations));
 
-    this._LoadModels();
+    this.LoadModels();  //Cargar modelo y animaciones de Erika
   }
 
-  _LoadModels() {
+  LoadModels() {
     const loader = new FBXLoader();
     loader.setPath('./resources/Erika/');
     loader.load('Erika Archer.fbx', (fbx) => {
@@ -70,6 +72,7 @@ class BasicCharacterController {
       loader.load('run.fbx', (a) => { _OnLoad('run', a); });
       loader.load('idle.fbx', (a) => { _OnLoad('idle', a); });
       loader.load('dance.fbx', (a) => { _OnLoad('dance', a); });
+      loader.load('jump.fbx', (a) => { _OnLoad('jump', a); });
     });
   }
 
@@ -102,7 +105,7 @@ class BasicCharacterController {
       acc.multiplyScalar(2.0);
     }
 
-    if (this._stateMachine._currentState.Name == 'dance') {
+    if ((this._stateMachine._currentState.Name == 'dance')||(this._stateMachine._currentState.Name == 'jump')) {
       acc.multiplyScalar(0.0);
     }
 
@@ -163,6 +166,7 @@ class BasicCharacterControllerInput {
       right: false,
       space: false,
       shift: false,
+      jump: false,
     };
     document.addEventListener('keydown', (e) => this._onKeyDown(e), false);
     document.addEventListener('keyup', (e) => this._onKeyUp(e), false);
@@ -175,6 +179,9 @@ class BasicCharacterControllerInput {
         break;
       case 65: // a
         this._keys.left = true;
+        break;
+        case 69: // e
+        this._keys.jump = true;       
         break;
       case 83: // s
         this._keys.backward = true;
@@ -199,6 +206,9 @@ class BasicCharacterControllerInput {
       case 65: // a
         this._keys.left = false;
         break;
+        case 69: // e
+        this._keys.jump = false;
+        break;
       case 83: // s
         this._keys.backward = false;
         break;
@@ -218,7 +228,7 @@ class BasicCharacterControllerInput {
 
 class FiniteStateMachine {
   constructor() {
-    this._states = {};
+    this._states = {};    //Arreglo de estados
     this._currentState = null;
   }
 
@@ -262,6 +272,7 @@ class CharacterFSM extends FiniteStateMachine {
     this._AddState('walk', WalkState);
     this._AddState('run', RunState);
     this._AddState('dance', DanceState);
+    this._AddState('jump', jumpState);
   }
 };
 
@@ -315,6 +326,56 @@ class DanceState extends State {
 
   _Cleanup() {
     const action = this._parent._proxy._animations['dance'].action;
+    
+    action.getMixer().removeEventListener('finished', this._CleanupCallback);
+  }
+
+  Exit() {
+    this._Cleanup();
+  }
+
+  Update(_) {
+  }
+};
+
+class jumpState extends State {
+  constructor(parent) {
+    super(parent);
+
+    this._FinishedCallback = () => {
+      this._Finished();
+    }
+  }
+
+  get Name() {
+    return 'jump';
+  }
+
+  Enter(prevState) {
+    const curAction = this._parent._proxy._animations['jump'].action;
+    const mixer = curAction.getMixer();
+    mixer.addEventListener('finished', this._FinishedCallback);
+
+    if (prevState) {
+      const prevAction = this._parent._proxy._animations[prevState.Name].action;
+
+      curAction.reset();  
+      curAction.setLoop(THREE.LoopOnce, 1);
+      curAction.clampWhenFinished = true;
+      curAction.crossFadeFrom(prevAction, 0.2, true);
+      curAction.play();
+    } else {
+      curAction.play();
+    }
+  }
+
+  _Finished() {
+    this._Cleanup();
+    this._parent.SetState('idle');
+  }
+
+  _Cleanup() {
+    const action = this._parent._proxy._animations['jump'].action;
     
     action.getMixer().removeEventListener('finished', this._CleanupCallback);
   }
@@ -456,6 +517,8 @@ class IdleState extends State {
       this._parent.SetState('walk');
     } else if (input._keys.space) {
       this._parent.SetState('dance');
+    }else if(input._keys.jump){
+      this._parent.setState('jump');
     }
   }
 };
@@ -531,12 +594,24 @@ class CharacterControllerDemo {
     const plane = new THREE.Mesh(
         new THREE.PlaneGeometry(100, 100, 10, 10),
         new THREE.MeshStandardMaterial({
-            color: 0x808080,
+            //color: 0x808080,  //Color gris
+            //color:0xfafafa,   //Color blanco
+            color:0xf7f0f0,     //Color intermedio 
           }));
     plane.castShadow = false;
     plane.receiveShadow = true;
     plane.rotation.x = -Math.PI / 2;
     this._scene.add(plane);
+
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(2,2,2),
+      new THREE.MeshStandardMaterial({
+        color:0xff0000,
+      }));
+      box.position.set(3,1,0);
+      box.castShadow=true;
+      box.recieveShadow =true;
+      this._scene.add(box);  //**********************************Add box */
 
     this._mixers = [];
     this._previousRAF = null;
